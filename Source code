@@ -1,0 +1,300 @@
+#question7
+EOI = 0    #end of input   (A token to indicate end of input)
+TRUE = 1    # True         (string for constant True, not violate the pre-defined operator in UNIX notation)
+FALSE = 2   # False        (string for constant False, not violate the pre-defined operator in UNIX notation)
+VAR = 3    # [A-Za-z]+     (string with at least one upper/lower case letter)
+AND = 4     # and          (string for operator and, not violate the pre-defined operator in UNIX notation)
+OR = 5  # or               (string for operator or, not violate the pre-defined operator in UNIX notation)
+NOT = 6   # not            (string for operator not, not violate the pre-defined operator in UNIX notation)
+EQ = 7   # "="             (string for assignment equal, not violate the pre-defined operator in UNIX notation)
+DOL = 8   # "$"            (Since conflict with pre-defined operator in UNIX notation, use quotation mark operator to take as text characters '$')
+LP = 9     # "("           (Since conflict with pre-defined operator in UNIX notation, use quotation mark operator to take as text characters '(')
+RP = 10     # ")"          (Since conflict with pre-defined operator in UNIX notation, use quotation mark operator to take as text characters ')')
+ERR = 11   #error          (A token to indicate error)
+
+#quesion8
+# Grammar
+# prog -> expr2
+# expr1 -> {TRUE FALSE} tail2 | LP expr2 RP tail2 | DOL varname
+# expr2 -> NOT expr1 | expr1
+# tail1 -> EQ expr2 | tail2
+# tail2 -> {AND OR} expr2 | epsilon
+# varname -> VAR tail1 | tail1
+
+#question9
+import sys
+debug = False
+
+#print current token,string(dont change)
+def show(indent,name,s,spp):
+    # if debug:
+    if True:
+        print(indent+name+'("',end='');
+        j = len(s)
+        for i in range(spp,j):
+            print(s[i],sep="",end="")
+        print('")',end='\n')
+        return
+    else:
+        return
+#end show
+
+#print stack exit info(dont change)
+def x(indent,name1,name2):
+    if debug:
+        print(indent+"returned to "+name1+" from "+name2)
+    else:
+        return
+#end x
+
+
+
+def EatWhiteSpace(s,spp):
+    j = len(s)
+    if spp >= j:
+        return spp
+
+    while s[spp] == ' ' or s[spp] == '\n':
+        spp=spp+1
+        if spp >= j:
+            break
+        
+    return spp
+#end EatWhiteSpace
+
+
+# prog -> expr2
+# function prog --------------------------------------------- 
+def prog(s,spp,indent):
+    show(indent,'prog',s,spp)
+    indent1 = indent+' '
+
+    res,spp = expr2(s,spp,indent1)
+    x(indent1,"prog","expr2")
+    return res,spp
+#end prog
+
+# expr1 -> {TRUE FALSE} tail2 | LP expr2 RP tail2 | DOL varname
+# function expr1 ------------------------------------------------------------
+def expr1 (s,spp,indent):
+    show(indent,'expr1',s,spp)
+    indent1 = indent+' '
+
+#find token
+    token = LookAhead(s,spp)
+    # expr1 -> {TRUE FALSE} tail2
+    if token == TRUE or token == FALSE:
+        spp = ConsumeToken(s,spp)
+        #res is bollean return true or false 
+        res,spp = tail2(s,spp,indent1)
+        x(indent1,"expr1","tail2")
+        return res,spp
+    # LP expr2 RP tail2
+    elif token == LP:
+        spp = ConsumeToken(s,spp)
+        res,spp = expr2(s,spp,indent1)
+        x(indent1,"expr1","expr2")
+        if not res:
+            return False,spp
+        token,spp = NextToken(s,spp)
+        if token != RP:
+            return False,spp
+        res,spp = tail2(s,spp,indent1)
+        x(indent1,"expr1","tail2")
+        return res,spp
+
+    # DOL varname
+    elif token == DOL:
+        spp = ConsumeToken(s,spp)
+        #res is bollean return true or false 
+        res,spp = varname(s,spp,indent1)
+        x(indent1,"expr1","varname")
+        return res,spp
+    else:
+        return False,spp
+
+
+#end expr1
+
+# expr2 -> NOT expr1 | expr1
+# function expr2 ------------------------------------------------------------
+def expr2 (s,spp,indent):
+    show(indent,'expr2',s,spp)
+    indent1 = indent+' '
+
+#find token
+    token = LookAhead(s,spp)
+    #expr2 -> NOT expr1
+    if token == NOT:
+        spp = ConsumeToken(s,spp)
+        #res is bollean return true or false 
+        res,spp = expr1(s,spp,indent1)
+        x(indent1,"Expr2","Expr1")
+        return res,spp
+    #expr1
+    else:
+        res,spp = expr1(s,spp,indent1)
+        x(indent1,"Expr2","Expr1")
+        return res,spp
+#end expr2
+
+
+
+# tail1 -> EQ expr2 | tail2
+# function tail1 --------------------------------------------------------
+def tail1(s,spp,indent):
+    show(indent,'tail1',s,spp)
+    indent1 = indent+' '
+
+    token = LookAhead(s,spp)
+    # tail1 -> EQ expr2
+    if token == EQ:
+        spp = ConsumeToken(s,spp)
+        res,spp = expr2(s,spp,indent1)
+        x(indent1,"tail1","expr2")
+        return res,spp
+    # tail2
+    else:
+        res,spp = tail2(s,spp,indent1)
+        x(indent1,"tail1","tail2")
+        return res,spp
+#end tail1
+
+# tail2 -> {AND OR} expr2 | epsilon
+# function tail2 --------------------------------------------- 
+def tail2(s,spp,indent):
+    show(indent,'tail2',s,spp)
+    indent1 = indent+' '
+
+    token = LookAhead(s,spp)
+    # tail2 -> {AND OR} expr2
+    if token == AND or token == OR:
+        spp = ConsumeToken(s,spp)
+        res,spp = expr2(s,spp,indent1)
+        x(indent1,"tail2","expr2")
+        return res,spp
+    else:
+        return True,spp #epsilon
+#end expr
+
+# varname -> VAR tail1 | tail1
+# function varname --------------------------------------------- 
+def varname(s,spp,indent):
+    show(indent,'varname',s,spp)
+    indent1 = indent+' '
+
+    #find token
+    token = LookAhead(s,spp)
+    #varname -> VAR tail1
+    if token == VAR:
+        spp = ConsumeToken(s,spp)
+        #res is bollean return true or false 
+        res,spp = tail1(s,spp,indent1)
+        x(indent1,"varname","tail1")
+        return res,spp
+    #tail1
+    else:
+        res,spp = tail1(s,spp,indent1)
+        x(indent1,"varname","tail1")
+        return res,spp
+#end expr
+
+
+# the scanner ####################################################
+
+# function LookAhead ------------------------------------------- 
+def LookAhead(s,spp):
+    j = len(s);
+    i = spp
+    if i >= j:
+        return EOI
+    while s[i]==" " or s[i]=="\n":
+        i = i+1
+        if i >= j:
+            return EOI
+
+    if s[i:i+4] == 'True':
+        return TRUE
+    elif s[i:i+5] == "False":
+        return FALSE
+    elif s[i:i+3] == "and":
+        return AND
+    elif s[i:i+2] == "or":
+        return OR
+    elif s[i: i+3] == "not":
+        return NOT
+    elif s[i] == "=":
+        return EQ
+    elif s[i] == "(":
+        return LP
+    elif s[i] == ")":
+        return RP
+    elif s[i] == "$":
+        return DOL
+    elif (ord(s[spp]) >= ord('A') and ord(s[spp]) <= ord('Z')) or (ord(s[spp]) >= ord('a') and ord(s[spp]) <= ord('z')):
+        return VAR
+    else:
+        return ERR
+#end LookAhead
+
+# function NextToken --------------------------------------------- 
+def NextToken(s,spp):
+    spp1 = spp
+    spp = EatWhiteSpace(s,spp)
+    j = len(s)
+    if spp >= j:
+        return ERR,spp1
+
+    if spp >= j:
+        return EOI,spp
+    elif s[spp:spp+4] == 'True':
+        return TRUE,spp+4
+    elif s[spp:spp+5] == "False":
+        return FALSE,spp+5
+    elif s[spp:spp+3] == "and":
+        return AND,spp+3
+    elif s[spp:spp+2] == "or":
+        return OR,spp+2
+    elif s[spp:spp+3] == "not":
+        return NOT,spp+3
+    elif s[spp] == "=":
+        return EQ,spp+1
+    elif s[spp] == "(":
+        return LP,spp+1
+    elif s[spp] == ")":
+        return RP,spp+1
+    elif s[spp] == "$":
+        return DOL,spp+1
+    elif (ord(s[spp]) >= ord('A') and ord(s[spp]) <= ord('Z')) or (ord(s[spp]) >= ord('a') and ord(s[spp]) <= ord('z')):
+        while (spp < j):
+            if (ord(s[spp]) >= ord('A') and ord(s[spp]) <= ord('Z')) or (ord(s[spp]) >= ord('a') and ord(s[spp]) <= ord('z')):
+                spp = spp + 1
+            else:
+                break
+        return VAR,spp
+    else:
+        return ERR,spp1
+#end NUM
+
+def ConsumeToken(s,spp):
+    token,spp = NextToken(s,spp)
+    return spp
+#end ConsumeToken
+
+#main section
+s = "$A = $BCDDDF"
+res,spp = prog(s,0,"");
+
+# is there a leftover ?
+if spp < len(s)-1:
+    print("parse Error")
+else:
+    if res:
+        print("parsing OK")
+    else:
+        print("parse Error")
+#end main section
+                
+
+
+
